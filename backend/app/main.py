@@ -11,6 +11,7 @@ Features:
 - CORS support for frontend integration
 - Static file serving for uploads
 - Health check endpoints
+- LLM-powered analysis and suggestions
 """
 
 from fastapi import FastAPI, Request
@@ -25,6 +26,7 @@ import time
 from app.config import settings
 from app.database import init_db, close_db
 from app.routers import datasets, networks, training, optimization
+from app.routers import llm
 
 # Configure logging
 logging.basicConfig(
@@ -84,11 +86,18 @@ A comprehensive API for training and optimizing neural networks using evolutiona
 - **Network Architecture**: Define and configure neural network architectures
 - **Training**: Train networks with real-time metrics and early stopping
 - **Optimization**: Optimize hyperparameters using PSO and Genetic Algorithms
+- **LLM Analysis**: Get AI-powered insights on training results and architecture suggestions
 
 ### Algorithms
 
 - **PSO (Particle Swarm Optimization)**: Best for continuous parameters like learning rate
 - **GA (Genetic Algorithm)**: Best for discrete architecture decisions
+
+### LLM Features
+
+- Training results analysis with overfitting detection
+- Dataset-based architecture recommendations  
+- Optimization results explanation in plain language
 
 ### Scientific Basis
 
@@ -180,6 +189,11 @@ app.include_router(
     prefix="/api/optimization", 
     tags=["Optimization"],
 )
+app.include_router(
+    llm.router,
+    prefix="/api/llm",
+    tags=["LLM Analysis"],
+)
 
 
 # Health check and root endpoints
@@ -249,6 +263,7 @@ async def root():
             "networks": "/api/networks",
             "training": "/api/training",
             "optimization": "/api/optimization",
+            "llm": "/api/llm",
         },
     }
 
@@ -295,6 +310,13 @@ async def api_root():
                 "cancel": "POST /api/optimization/{id}/cancel",
                 "delete": "DELETE /api/optimization/{id}",
                 "algorithms": "GET /api/optimization/algorithms/info",
+            },
+            "llm": {
+                "analyze_training": "POST /api/llm/analyze-training",
+                "suggest_architecture": "POST /api/llm/suggest-architecture",
+                "explain_optimization": "POST /api/llm/explain-optimization",
+                "status": "GET /api/llm/status",
+                "chat": "POST /api/llm/chat",
             },
         },
     }
