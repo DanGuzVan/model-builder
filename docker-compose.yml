@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: nn-optimizer-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nnoptimizer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nnoptimizer123}
+      POSTGRES_DB: ${POSTGRES_DB:-nnoptimizer}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - nn-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nnoptimizer}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Ollama service removed - using host's Ollama installation
+  # If you need to run Ollama in Docker, uncomment the ollama service below
+  # and change OLLAMA_BASE_URL to http://ollama:11434
+  #
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: nn-optimizer-ollama
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   ports:
+  #     - "11434:11434"
+  #   networks:
+  #     - nn-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nn-optimizer-backend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nnoptimizer}:${POSTGRES_PASSWORD:-nnoptimizer123}@postgres:5432/${POSTGRES_DB:-nnoptimizer}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-nnoptimizer}:${POSTGRES_PASSWORD:-nnoptimizer123}@postgres:5432/${POSTGRES_DB:-nnoptimizer}
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:1b}
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    networks:
+      - nn-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nn-optimizer-frontend
+    ports:
+      - "3000:80"
+    networks:
+      - nn-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  nn-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
